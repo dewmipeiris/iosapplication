@@ -1,11 +1,10 @@
 //
 //  ContentView.swift
-//  iosapplication1
-//
-//  Created by student5 on 2026-06-06.
-//
+//  iosapplication
 
 import SwiftUI
+
+// Extends colors to support hex color codes
 
 extension Color {
     init(hex: String) {
@@ -26,6 +25,7 @@ struct ContentView: View {
     @State private var timer: Timer? = nil
     @State private var isAnimating: Bool = false
 
+// Convert total seconds to HH:MM:SS format
     var formattedTime: String {
         let hours = elapsedSeconds / 3600
         let minutes = (elapsedSeconds % 3600) / 60
@@ -33,6 +33,7 @@ struct ContentView: View {
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 
+    // Full screen background color
     var body: some View {
         ZStack {
             // Background gradient
@@ -52,6 +53,7 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .tracking(4)
 
+                    // spring effect animation
                     Text("\(tapCount)")
                         .font(.system(size: 64, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
