@@ -1,11 +1,9 @@
 //
 //  ContentView.swift
-//  iosapplication1
-//
-//  Created by student5 on 2026-06-06.
-//
+//  iosapplication
 
 import SwiftUI
+internal import Combine
 
 extension Color {
     init(hex: String) {
@@ -20,32 +18,26 @@ extension Color {
 }
 
 struct ContentView: View {
-    @State private var tapCount: Int = 0
-    @State private var elapsedSeconds: Int = 0
-    @State private var isRunning: Bool = false
-    @State private var timer: Timer? = nil
-    @State private var isAnimating: Bool = false
 
-    var formattedTime: String {
-        let hours = elapsedSeconds / 3600
-        let minutes = (elapsedSeconds % 3600) / 60
-        let seconds = elapsedSeconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
+    @AppStorage("tapFrenzyHighScore") private var highScore = 0
+
+    @State private var tapCount = 0
+    @State private var timeLeft = 10
+    @State private var isPlaying = false
+    @State private var gameOver = false
+    @State private var isNewHighScore = false
+    @State private var isAnimating = false
+
+    let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [Color(hex: "#1a1a2e"), Color(hex: "#16213e")],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            Color(hex: "#1a1a2e")
+                .ignoresSafeArea()
 
             VStack(spacing: 40) {
 
-                // Tap Counter Box
+                // Tap count box
                 VStack(spacing: 8) {
                     Text("TAPS")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
@@ -57,145 +49,163 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .contentTransition(.numericText())
                         .animation(.spring(response: 0.3), value: tapCount)
+
+                    Text("BEST: \(highScore)")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(Color(hex: "#9494ab"))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 28)
                 .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.white.opacity(0.07))
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color(hex: "#20203a"))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color(hex: "#4f46e5").opacity(0.5), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color(hex: "#3a3a5c"), lineWidth: 1)
                         )
                 )
                 .padding(.horizontal, 32)
 
                 Spacer()
 
-                // Tap Button
-                ZStack {
-                    Button(action: handleTap) {
-                        ZStack {
+                // Tap button
+                Button(action: handleTap) {
+                    Circle()
+                        .fill(Color(hex: "#4f46e5"))
+                        .overlay(
                             Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [Color(hex: "#6366f1"), Color(hex: "#4f46e5")],
-                                        center: .center,
-                                        startRadius: 10,
-                                        endRadius: 80
-                                    )
-                                )
-                                .frame(width: 160, height: 160)
-                                .shadow(color: Color(hex: "#6366f1").opacity(0.6), radius: isAnimating ? 30 : 15)
-
-                            Circle()
-                                .stroke(Color(hex: "#818cf8").opacity(isAnimating ? 0 : 0.5), lineWidth: 2)
-                                .frame(width: isAnimating ? 200 : 160, height: isAnimating ? 200 : 160)
-                                .animation(.easeOut(duration: 0.4), value: isAnimating)
-
+                                .stroke(Color(hex: "#6a61f0"), lineWidth: 1)
+                        )
+                        .frame(width: 160, height: 160)
+                        .overlay(
                             Text("TAP")
                                 .font(.system(size: 22, weight: .heavy, design: .rounded))
                                 .foregroundColor(.white)
                                 .tracking(3)
-                        }
-                    }
-                    .scaleEffect(isAnimating ? 0.92 : 1.0)
-                    .animation(.spring(response: 0.2, dampingFraction: 0.5), value: isAnimating)
+                        )
                 }
-                .frame(width: 220, height: 220)
+                .scaleEffect(isAnimating ? 0.94 : 1.0)
+                .animation(.easeOut(duration: 0.12), value: isAnimating)
+                .disabled(!isPlaying)
 
                 Spacer()
 
-                // Timer Box
-                VStack(spacing: 16) {
-                    Text("ELAPSED TIME")
+                // Time left box
+                VStack(spacing: 8) {
+                    Text("TIME LEFT")
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundColor(Color(hex: "#a0a0c0"))
+                        .foregroundColor(Color(hex: "#9494ab"))
                         .tracking(4)
 
-                    Text(formattedTime)
+                    Text("\(timeLeft)")
                         .font(.system(size: 48, weight: .bold, design: .monospaced))
-                        .foregroundColor(isRunning ? Color(hex: "#34d399") : Color(hex: "#94a3b8"))
+                        .foregroundColor(timeLeft <= 3 ? Color(hex: "#ef4444") : Color(hex: "#34d399"))
                         .contentTransition(.numericText())
-                        .animation(.linear, value: elapsedSeconds)
-
-                    // Start / Reset buttons
-                    HStack(spacing: 16) {
-                        Button(action: toggleTimer) {
-                            Text(isRunning ? "STOP" : "START")
-                                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                .tracking(2)
-                                .foregroundColor(.white)
-                                .frame(width: 100, height: 40)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(isRunning ? Color(hex: "#ef4444") : Color(hex: "#22c55e"))
-                                )
-                        }
-
-                        Button(action: resetAll) {
-                            Text("RESET")
-                                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                .tracking(2)
-                                .foregroundColor(.white)
-                                .frame(width: 100, height: 40)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.15))
-                                )
-                        }
-                    }
+                        .animation(.easeInOut, value: timeLeft)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 28)
                 .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.white.opacity(0.07))
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color(hex: "#20203a"))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color(hex: "#34d399").opacity(0.3), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color(hex: "#2e4a3f"), lineWidth: 1)
                         )
                 )
                 .padding(.horizontal, 32)
                 .padding(.bottom, 40)
-
             }
-            .padding(.top, 60)
+            .padding(.top, 40)
 
+            // Game over overlay
+            if gameOver {
+                Color.black.opacity(0.55)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture { startGame() }
+
+                VStack(spacing: 14) {
+                    Text("GAME OVER")
+                        .font(.system(size: 28, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .tracking(2)
+
+                    Text("\(tapCount) TAPS")
+                        .font(.system(size: 40, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color(hex: "#4f46e5"))
+
+                    Text(isNewHighScore ? "NEW HIGH SCORE" : "BEST: \(highScore)")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundColor(Color(hex: "#34d399"))
+                        .tracking(1)
+
+                    Text("TAP ANYWHERE TO PLAY AGAIN")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundColor(Color(hex: "#9494ab"))
+                        .padding(.top, 20)
+                }
+                .padding(.vertical, 36)
+                .padding(.horizontal, 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(Color(hex: "#20203a"))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18)
+                                .stroke(Color(hex: "#3a3a5c"), lineWidth: 1)
+                        )
+                )
+                .transition(.scale.combined(with: .opacity))
+                .onTapGesture { startGame() }
+            }
+        }
+        .navigationTitle("Tap Frenzy")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { startGame() }
+        .onReceive(countdownTimer) { _ in
+            guard isPlaying else { return }
+            if timeLeft > 0 {
+                timeLeft -= 1
+            }
+            if timeLeft == 0 {
+                endGame()
+            }
         }
     }
 
+    // MARK: - Game Logic
+
     func handleTap() {
-        guard isRunning else { return }
+        guard isPlaying else { return }
         tapCount += 1
         isAnimating = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             isAnimating = false
         }
     }
 
-    func toggleTimer() {
-        if isRunning {
-            timer?.invalidate()
-            timer = nil
-            isRunning = false
-        } else {
-            isRunning = true
-            timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-                elapsedSeconds += 1
-            }
+    func startGame() {
+        tapCount = 0
+        timeLeft = 10
+        isPlaying = true
+        withAnimation(.easeInOut(duration: 0.25)) {
+            gameOver = false
         }
     }
 
-    func resetAll() {
-        timer?.invalidate()
-        timer = nil
-        isRunning = false
-        elapsedSeconds = 0
-        tapCount = 0
+    func endGame() {
+        isPlaying = false
+        isNewHighScore = tapCount > highScore
+        if tapCount > highScore {
+            highScore = tapCount
+        }
+        withAnimation(.easeInOut(duration: 0.3)) {
+            gameOver = true
+        }
     }
 }
 
 #Preview {
     ContentView()
 }
+
