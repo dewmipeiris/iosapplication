@@ -5,6 +5,8 @@
 import SwiftUI
 internal import Combine
 
+// Extends colors to support hex color codes
+
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -18,18 +20,21 @@ extension Color {
 }
 
 struct ContentView: View {
+    @State private var tapCount: Int = 0
+    @State private var elapsedSeconds: Int = 0
+    @State private var isRunning: Bool = false
+    @State private var timer: Timer? = nil
+    @State private var isAnimating: Bool = false
 
-    @AppStorage("tapFrenzyHighScore") private var highScore = 0
+// Convert total seconds to HH:MM:SS format
+    var formattedTime: String {
+        let hours = elapsedSeconds / 3600
+        let minutes = (elapsedSeconds % 3600) / 60
+        let seconds = elapsedSeconds % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
 
-    @State private var tapCount = 0
-    @State private var timeLeft = 10
-    @State private var isPlaying = false
-    @State private var gameOver = false
-    @State private var isNewHighScore = false
-    @State private var isAnimating = false
-
-    let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
+    // Full screen background color
     var body: some View {
         ZStack {
             Color(hex: "#1a1a2e")
@@ -44,6 +49,7 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .tracking(4)
 
+                    // spring effect animation
                     Text("\(tapCount)")
                         .font(.system(size: 64, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
